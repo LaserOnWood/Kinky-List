@@ -1,11 +1,11 @@
 // ---- Configuration -------------------------------------------------
 const CATEGORIES = [
-    { id: "preferences", name: "Mes préférences", file: "data/json/Preferences.json", icon: ICONS.heart, accent: "#b3265e" },
-    { id: "donner", name: "Donner", file: "data/json/Donner.json", icon: ICONS.gift, accent: "#e0643f" },
-    { id: "recevoir", name: "Recevoir", file: "data/json/Recevoir.json", icon: ICONS.box, accent: "#3d7fd1" },
-    { id: "sentir", name: "Me sentir", file: "data/json/MeSentir.json", icon: ICONS.feather, accent: "#7b5cc4" },
-    { id: "faire-ressentir", name: "Faire ressentir", file: "data/json/FaireRessentir.json", icon: ICONS.bolt, accent: "#1f9d8a" }
-    // Pour une image à la place de l'icône : ajoute  image: "img/mon-image.png"  à la catégorie
+    { id: "preferences", num: "I", name: "Mes préférences", file: "data/json/Preferences.json", art: "preferences", accent: "#b3265e" },
+    { id: "donner", num: "II", name: "Donner", file: "data/json/Donner.json", art: "donner", accent: "#e0643f" },
+    { id: "recevoir", num: "III", name: "Recevoir", file: "data/json/Recevoir.json", art: "recevoir", accent: "#3d7fd1" },
+    { id: "sentir", num: "IV", name: "Me sentir", file: "data/json/MeSentir.json", art: "sentir", accent: "#7b5cc4" },
+    { id: "faire-ressentir", num: "V", name: "Faire ressentir", file: "data/json/FaireRessentir.json", art: "faire-ressentir", accent: "#1f9d8a" }
+    // Pour tes propres illustrations : ajoute  image: "img/carte.png", imageHover: "img/carte-survol.png"  à la catégorie
 ];
 const ANSWERS = [
     { label: "Pas renseigné", hex: "#9a9097", color: "var(--c0)" },
@@ -67,20 +67,30 @@ function setView(kind) {
     if (kind !== lastView) { window.scrollTo(0, 0); lastView = kind; }
 }
 
+// Avancement : nombre de réponses données, prochaine question sans réponse, questionnaire complet ou non
+function progress(id) {
+    const data = questions[id], n = data ? data.items.length : 0, a = answers[id] || [];
+    let done = 0, next = -1;
+    for (let i = 0; i < n; i++) { if (a[i] !== undefined && a[i] !== null) done++; else if (next < 0) next = i; }
+    return { n, done, next: next < 0 ? 0 : next, complete: n > 0 && done >= n };
+}
+
 function catCard(c) {
-    const data = questions[c.id], n = data ? data.items.length : 0;
-    const done = data ? (answers[c.id] || []).filter(v => v !== undefined && v !== null).length : 0;
+    const data = questions[c.id], { n, done, complete } = progress(c.id);
     const pct = n ? Math.round(done / n * 100) : 0;
-    const status = !data ? "Fichier introuvable" : (n && done >= n) ? "Terminé ✓" : done ? `${done}/${n} · Continuer →` : "Commencer →";
-    const media = c.image ? `<img class="cat-img" src="${esc(c.image)}" alt="">` : c.icon;
-    return `<div class="col"><button type="button" class="card cat-card h-100 w-100" style="--cat:${c.accent}" data-id="${c.id}"${data ? "" : " disabled"}>
-    <span class="card-body d-flex flex-row flex-lg-column align-items-center gap-3 text-start text-lg-center w-100">
-      <span class="cat-icon-wrap">${media}</span>
-      <span class="d-block flex-grow-1 w-100">
-        <span class="d-block cat-name">${esc(c.name)}</span>
-        <span class="d-block small text-body-secondary">${data ? n + " questions" : "—"}</span>
-        <span class="progress cat-progress mt-2" role="progressbar" aria-label="Progression" aria-valuenow="${pct}" aria-valuemin="0" aria-valuemax="100"><span class="progress-bar" style="width:${pct}%"></span></span>
-        <span class="d-block small fw-semibold mt-2 cat-status">${status}</span>
+    const status = !data ? "Fichier introuvable" : complete ? "Terminé ✓ · Voir le résultat" : done ? `${done}/${n} · Continuer` : "Commencer";
+    const art = c.image
+        ? `<img class="art art-rest" src="${esc(c.image)}" alt=""><img class="art art-active" src="${esc(c.imageHover || c.image)}" alt="">`
+        : `<span class="art art-rest">${ART[c.art].rest}</span><span class="art art-active">${ART[c.art].active}</span>`;
+    return `<div class="col"><button type="button" class="tarot-card" style="--cat:${c.accent}" data-id="${c.id}" aria-label="${esc(c.name)} : ${esc(status)}"${data ? "" : " disabled"}>
+    <span class="tarot-face">
+      <span class="tarot-num">${c.num}</span>
+      <span class="tarot-art">${art}</span>
+      <span class="tarot-info">
+        <span class="tarot-name">${esc(c.name)}</span>
+        <span class="tarot-sub">${data ? n + " questions" : "—"}</span>
+        <span class="tarot-progress"><i style="width:${pct}%"></i></span>
+        <span class="tarot-status">${status}</span>
       </span>
     </span></button></div>`;
 }
@@ -90,16 +100,16 @@ function home() {
     const failed = CATEGORIES.some(c => !questions[c.id]);
     const notice = failed ? `<div class="alert alert-warning" role="alert">Impossible de charger certains fichiers JSON.
     ${location.protocol === "file:" ? "Le site doit être lancé via un serveur (par exemple <code>python -m http.server</code> dans ce dossier) ou hébergé en ligne : un navigateur bloque la lecture des fichiers JSON en ouvrant directement index.html." : "Vérifie que le dossier <code>data/</code> est bien présent à côté de index.html."}</div>` : "";
-    app.innerHTML = `<div class="text-center mb-4">
+    app.innerHTML = `<div class="home-top text-center">
     <h1 class="display-6 fw-bold mb-1">Mes questionnaires</h1>
-    <p class="text-body-secondary mb-0">Choisis une carte et réponds, une question à la fois.</p></div>
-  ${notice}
-  <div class="row row-cols-1 row-cols-sm-2 row-cols-lg-5 g-3 justify-content-center mb-4">${CATEGORIES.map(catCard).join("")}</div>
-  <div class="mx-auto" style="max-width:420px">${pseudoField()}</div>`;
+    <p class="text-body-secondary mb-0">Choisis une carte et réponds, une question à la fois.</p>
+    ${notice ? `<div class="mt-3">${notice}</div>` : ""}</div>
+  <div class="row row-cols-2 row-cols-sm-3 row-cols-lg-5 gx-3 cat-row justify-content-center">${CATEGORIES.map(catCard).join("")}</div>
+  <div class="home-bottom"><div class="mx-auto" style="max-width:420px">${pseudoField()}</div></div>`;
     bindPseudo();
-    app.querySelectorAll(".cat-card[data-id]:not(:disabled)").forEach(el => el.onclick = () => {
-        const id = el.dataset.id, n = (answers[id] || []).length;
-        quiz(id, n >= questions[id].items.length ? 0 : n);
+    app.querySelectorAll(".tarot-card[data-id]:not(:disabled)").forEach(el => el.onclick = () => {
+        const id = el.dataset.id, p = progress(id);
+        if (p.complete) result(id); else quiz(id, p.next);   // terminé : on revoit le résultat sans tout refaire
     });
 }
 
@@ -304,7 +314,7 @@ function result(id) {
     };
     document.getElementById("exp-pdf").onclick = e => busy(e.target, () => download(fname("pdf"), "application/pdf", makePDF(layoutReport(buildExport(id), true))));
     document.getElementById("exp-img").onclick = e => busy(e.target, () => layoutReport(buildExport(id), false)[0].toBlob(b => download(fname("png"), "image/png", b), "image/png"));
-    document.getElementById("redo").onclick = () => { answers[id] = []; save(); quiz(id, 0); };
+    document.getElementById("redo").onclick = () => { if (!confirm("Effacer tes réponses de ce questionnaire et recommencer ?")) return; answers[id] = []; save(); quiz(id, 0); };
 }
 
 // ---- Démarrage -----------------------------------------------------
