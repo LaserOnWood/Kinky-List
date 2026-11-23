@@ -1,0 +1,55 @@
+{
+  "titre": "Mes préférences",
+  "sections": [
+    {
+      "titre": "Corps",
+      "description": "Mes préférences en matiere de corps.",
+      "questions": [
+        "Plutôt maigre",
+        "Plutôt en chair",
+        "Petits seins",
+        "Gros seins",
+        "Petit pénis",
+        "Gros pénis",
+        "Avec poils",
+        "Totalement épilé"
+      ]
+    },
+    {
+      "titre": "Habillement",
+      "description": "Mes préférences en matière d'habillement et de style vestimentaire.",
+      "questions": [
+        "Sexe habillé",
+        "Totalement nu",
+        "Caleçon",
+        "String",
+        "Lingerie sexy",
+        "Filet",
+        "Bas & Jarretelles",
+        "Talons hauts",
+        "Cuir",
+        "Latex",
+        "Vinyle",
+        "Wet look",
+        "Robes libertines",
+        "Uniforme & cosplay",
+        "Travestissement"
+      ]
+    },
+    {
+      "titre": "Préférences sexuelles",
+      "description": "Mes préférences sexuelles et mes goûts en matière de sexualité.",
+      "questions": [
+        "Vous et un homme",
+        "Vous et une femme",
+        "Vous et un homme transgenre",
+        "Vous et une femme transgenre",
+        "Vous, un homme et une femme",
+        "Vous et deux hommes",
+        "Vous et deux femmes",
+        "Activité à quatre",
+        "Orgie"
+      ]
+    }
+  ]
+}
