@@ -241,3 +241,59 @@ button {
 .section small {
   color: var(--muted);
 }
+.export small {
+  color: var(--muted);
+}
+@media print {
+  body {
+    background: #fff;
+    color: #000;
+  }
+  .top,
+  .actions,
+  .export,
+  .link {
+    display: none !important;
+  }
+  .card {
+    break-inside: avoid;
+    border: 1px solid #ccc;
+  }
+  :root {
+    --card: #fff;
+    --text: #000;
+    --muted: #555;
+    --line: #ddd;
+  }
+  .chip {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  .row .track i {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+}
+.pseudo {
+  display: block;
+  margin: 10px 0 16px;
+  font-size: 0.95rem;
+}
+.pseudo small {
+  color: var(--muted);
+}
+.pseudo input {
+  display: block;
+  width: 100%;
+  margin-top: 6px;
+  padding: 10px 12px;
+  font: inherit;
+  color: var(--text);
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+}
+.pseudo input:focus {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
