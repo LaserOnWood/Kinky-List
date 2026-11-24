@@ -7,7 +7,6 @@ const CATEGORIES = [
     { id: "faire-ressentir", num: "V", name: "Faire ressentir", file: "data/json/FaireRessentir.json", art: "faire-ressentir", accent: "#1f9d8a" }
     // Pour tes propres illustrations : ajoute  image: "img/carte.png", imageHover: "img/carte-survol.png"  à la catégorie
 ];
-
 const ANSWERS = [
     { label: "Pas renseigné", hex: "#9a9097", color: "var(--c0)" },
     { label: "Kink absolu", hex: "#b3265e", color: "var(--c1)" },
@@ -16,7 +15,7 @@ const ANSWERS = [
     { label: "Peut-être", hex: "#5b8fd6", color: "var(--c4)" },
     { label: "Non", hex: "#4b4350", color: "var(--c5)" }
 ];
-const STORAGE_KEY = "questionnaires-reponses-v2";
+const STORAGE_KEY = "questionnaires-reponses";   // { catégorie: { "section::question": réponse } }
 
 // ---- État ----------------------------------------------------------
 const app = document.getElementById("app");
@@ -29,8 +28,10 @@ glows.innerHTML = CATEGORIES.map((c, i) => `<span class="glow" data-id="${c.id}"
 document.body.prepend(glows);
 const hotGlow = id => glows.querySelectorAll(".glow").forEach(g => g.classList.toggle("is-hot", g.dataset.id === id));
 const questions = {};   // id -> tableau de textes (ou null si échec de chargement)
-let answers = {};       // id -> tableau d'index de réponses
-try { answers = JSON.parse(localStorage.getItem(STORAGE_KEY)) || {}; } catch (e) { answers = {}; }
+let answers = {};       // en mémoire : id -> tableau de réponses, dans l'ordre des questions actuelles
+let stored = {};       // sur l'appareil : id -> { clé de question -> réponse }
+let flash = "";        // message affiché une fois sur l'accueil
+try { stored = JSON.parse(localStorage.getItem(STORAGE_KEY)) || {}; } catch (e) { stored = {}; }
 const PSEUDO_KEY = "questionnaires-pseudo";
 let pseudo = "";
 try { pseudo = localStorage.getItem(PSEUDO_KEY) || ""; } catch (e) { }
@@ -40,22 +41,32 @@ const pseudoField = () => `<div class="pseudo-field">
   <label for="pseudo" class="form-label fw-semibold mb-1">Ton prénom ou pseudo <span class="small fw-normal text-body-secondary">(optionnel, utilisé dans l’export)</span></label>
   <input id="pseudo" class="form-control" type="text" maxlength="30" autocomplete="nickname" placeholder="Ex. Léa" value="${esc(pseudo)}"></div>`;
 const bindPseudo = () => { const i = document.getElementById("pseudo"); if (i) i.oninput = () => setPseudo(i.value); };
-const save = () => { try { localStorage.setItem(STORAGE_KEY, JSON.stringify(answers)); } catch (e) { } };
 
+
+// Enregistre les réponses actuelles. Les réponses de questions qui n'existent plus dans le JSON sont conservées
+// (elles reviennent si la question revient) ; celles des questions actuelles sont mises à jour.
+const save = () => {
+    CATEGORIES.forEach(c => {
+        const data = questions[c.id]; if (!data) return;
+        const a = answers[c.id] || [], m = stored[c.id] = stored[c.id] || {};
+        data.items.forEach((it, i) => { if (a[i] === undefined || a[i] === null) delete m[it.key]; else m[it.key] = a[i]; });
+    });
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(stored)); } catch (e) { }
+};
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 
-// Formats acceptés :
-//  { "titre": "...", "sections": [ { "titre", "description", "questions": [...] }, ... ] }
-//  { "titre", "description", "questions": [...] }   ou simplement   [ "q1", "q2" ]
-const toText = x => typeof x === "string" ? x : (x.question || x.text || x.label || x.titre || x.q || JSON.stringify(x));
+// Format d'un fichier JSON :
+//  { "titre": "...", "sections": [ { "titre": "...", "description": "...", "questions": ["...", "..."] }, ... ] }
 function normalize(json) {
-    let raw = [];
-    if (json && Array.isArray(json.sections)) raw = json.sections;
-    else if (Array.isArray(json)) raw = [{ questions: json }];
-    else if (json && Array.isArray(json.questions)) raw = [{ titre: "", description: json.description || "", questions: json.questions }];
-    const sections = raw.map(s => ({ titre: s.titre || "", description: s.description || "", questions: (s.questions || []).map(toText) }));
+    if (!json || !Array.isArray(json.sections)) throw new Error("Format JSON inattendu : une liste « sections » est attendue");
+    const sections = json.sections.map(s => ({ titre: s.titre || "", description: s.description || "", questions: (s.questions || []).map(String) }));
     const items = [];
-    sections.forEach((s, si) => s.questions.forEach(q => items.push({ q, s: si })));
+    const seen = {};
+    sections.forEach((s, si) => s.questions.forEach(q => {
+        let key = `${s.titre}::${q}`; const n = seen[key] = (seen[key] || 0) + 1;
+        if (n > 1) key += `#${n}`;          // même question deux fois dans la même section
+        items.push({ q, s: si, key });
+    }));
     return { sections, items };
 }
 
@@ -67,6 +78,14 @@ async function loadAll() {
             questions[c.id] = normalize(await r.json());
         } catch (e) { questions[c.id] = null; }
     }));
+}
+
+function hydrate() {
+    CATEGORIES.forEach(c => {
+        const data = questions[c.id]; if (!data) return;
+        const m = stored[c.id] || {};
+        answers[c.id] = data.items.map(it => m[it.key]);
+    });
 }
 
 // ---- Vues ----------------------------------------------------------
@@ -87,6 +106,18 @@ function progress(id) {
     for (let i = 0; i < n; i++) { if (a[i] !== undefined && a[i] !== null) done++; else if (next < 0) next = i; }
     return { n, done, next: next < 0 ? 0 : next, complete: n > 0 && done >= n };
 }
+
+// Efface toutes les réponses et le pseudo de cet appareil
+function eraseAll() {
+    if (!confirm("Effacer toutes tes réponses et ton pseudo sur cet appareil ? Cette action est définitive.")) return;
+    answers = {}; stored = {}; pseudo = "";
+    try { [STORAGE_KEY, PSEUDO_KEY].forEach(k => localStorage.removeItem(k)); } catch (e) { }
+    CATEGORIES.forEach(c => { if (questions[c.id]) answers[c.id] = questions[c.id].items.map(() => undefined); });
+    flash = "Tes réponses et ton pseudo ont été effacés de cet appareil.";
+    home();
+}
+const eraseButton = () => `<button type="button" class="btn btn-outline-danger btn-sm" data-erase>Effacer mes données</button>`;
+const bindErase = () => app.querySelectorAll("[data-erase]").forEach(b => b.onclick = eraseAll);
 
 function catCard(c) {
     const data = questions[c.id], { n, done, complete } = progress(c.id);
@@ -110,16 +141,19 @@ function catCard(c) {
 
 function home() {
     setView("home");
+    const flashHtml = flash ? `<div class="alert alert-success mt-3 mb-0" role="alert">${esc(flash)}</div>` : "";
+    flash = "";
     const failed = CATEGORIES.some(c => !questions[c.id]);
     const notice = failed ? `<div class="alert alert-warning" role="alert">Impossible de charger certains fichiers JSON.
     ${location.protocol === "file:" ? "Le site doit être lancé via un serveur (par exemple <code>python -m http.server</code> dans ce dossier) ou hébergé en ligne : un navigateur bloque la lecture des fichiers JSON en ouvrant directement index.html." : "Vérifie que le dossier <code>data/</code> est bien présent à côté de index.html."}</div>` : "";
     app.innerHTML = `<div class="home-top text-center">
     <h1 class="display-6 fw-bold mb-1">Mes questionnaires</h1>
     <p class="text-body-secondary mb-0">Choisis une carte et réponds, une question à la fois.</p>
-    ${notice ? `<div class="mt-3">${notice}</div>` : ""}</div>
+    ${notice ? `<div class="mt-3">${notice}</div>` : ""}${flashHtml}</div>
   <div class="row row-cols-2 row-cols-sm-3 row-cols-lg-5 gx-3 cat-row justify-content-center">${CATEGORIES.map(catCard).join("")}</div>
-  <div class="home-bottom"><div class="mx-auto" style="max-width:420px">${pseudoField()}</div></div>`;
+  <div class="home-bottom"><div class="mx-auto" style="max-width:420px">${pseudoField()}<div class="text-center mt-3">${eraseButton()}</div></div></div>`;
     bindPseudo();
+    bindErase();
     app.querySelectorAll(".tarot-card[data-id]:not(:disabled)").forEach(el => {
         el.onmouseenter = el.onfocus = () => hotGlow(el.dataset.id);
         el.onmouseleave = el.onblur = () => hotGlow(null);
@@ -128,6 +162,15 @@ function home() {
         const id = el.dataset.id, p = progress(id);
         if (p.complete) result(id); else quiz(id, p.next);   // terminé : on revoit le résultat sans tout refaire
     });
+}
+
+// Prochaine question sans réponse après la question i : les questions déjà répondues sont sautées.
+// Sert surtout quand on ajoute des questions à un questionnaire déjà rempli : seules les nouvelles sont posées.
+function nextToAnswer(id, i) {
+    const a = answers[id] || [], n = questions[id].items.length;
+    for (let j = i + 1; j < n; j++) if (a[j] === undefined || a[j] === null) return j;
+    const p = progress(id);
+    return p.complete ? n : p.next;   // plus rien après : fin, ou retour à une question laissée sans réponse
 }
 
 function quiz(id, i) {
@@ -153,7 +196,7 @@ function quiz(id, i) {
     app.querySelectorAll(".ans").forEach(b => b.onclick = () => {
         answers[id][i] = +b.dataset.k; save();
         document.getElementById("q").classList.add("out");
-        setTimeout(() => quiz(id, i + 1), 200);
+        setTimeout(() => quiz(id, nextToAnswer(id, i)), 200);
     });
 }
 
@@ -318,11 +361,13 @@ function result(id) {
     <p class="small text-body-secondary mb-3">Tes réponses restent sur ton appareil : rien n’est envoyé en ligne.</p>
     ${pseudoField()}
     <div class="d-grid d-sm-flex gap-2 mt-3"><button type="button" class="btn btn-primary" id="exp-pdf">PDF</button><button type="button" class="btn btn-outline-secondary" id="exp-img">Image (PNG)</button><button type="button" class="btn btn-outline-secondary" id="exp-json">JSON</button></div>
+    <div class="d-flex flex-wrap align-items-center gap-2 mt-3 pt-3 border-top">${eraseButton()}<span class="small text-body-secondary">Supprime toutes tes réponses et ton pseudo de cet appareil.</span></div>
   </div></div>
   <div class="d-grid d-sm-flex gap-2 mt-4"><button type="button" class="btn btn-onc fw-semibold" id="redo">Recommencer</button><button type="button" class="btn btn-onc-ghost" id="home2">Autres questionnaires</button></div>`;
     document.getElementById("quit").onclick = home;
     document.getElementById("home2").onclick = home;
     bindPseudo();
+    bindErase();
     const fname = ext => `resultats${pseudo && slug(pseudo) ? "-" + slug(pseudo) : ""}-${id}-${new Date().toISOString().slice(0, 10)}.${ext}`;
     document.getElementById("exp-json").onclick = () => download(fname("json"), "application/json", JSON.stringify(buildExport(id), null, 2));
     const busy = (btn, fn) => {
@@ -335,4 +380,4 @@ function result(id) {
 }
 
 // ---- Démarrage -----------------------------------------------------
-loadAll().then(home);
+loadAll().then(() => { hydrate(); home(); });
