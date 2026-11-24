@@ -45,6 +45,109 @@
   max-width: 720px;
 }
 
+/* Fonds : accueil noir avec lueurs, questionnaire et résultat à la couleur de la catégorie */
+body.view-home {
+  background: #050408;
+}
+body.view-home #app {
+  color: var(--bs-body-color);
+}
+#app {
+  position: relative;
+  z-index: 1;
+}
+body.view-colored {
+  min-height: 100vh;
+  background:
+    radial-gradient(
+      900px 560px at 12% -8%,
+      color-mix(in srgb, var(--accent) 70%, #fff) 0%,
+      transparent 62%
+    ),
+    linear-gradient(
+        165deg,
+        color-mix(in srgb, var(--accent) 80%, #000) 0%,
+        color-mix(in srgb, var(--accent) 38%, #000) 100%
+      )
+      fixed;
+}
+body.view-colored #app {
+  color: #fff;
+}
+body.view-colored #app .card {
+  color: var(--bs-body-color);
+}
+body.view-colored #app .btn-link {
+  color: rgba(255, 255, 255, 0.9) !important;
+}
+body.view-colored #app .counter {
+  color: #fff;
+}
+body.view-colored #app > .progress {
+  --bs-progress-bg: rgba(255, 255, 255, 0.28);
+  --bs-progress-bar-bg: #fff;
+}
+body.view-colored .section {
+  background: rgba(0, 0, 0, 0.24);
+  border-left-color: #fff;
+  color: #fff;
+}
+body.view-colored .section .text-body-secondary {
+  color: rgba(255, 255, 255, 0.78) !important;
+}
+[data-bs-theme="dark"] .accent-text {
+  color: color-mix(in srgb, var(--accent) 68%, #fff);
+}
+
+/* Lueurs de l'accueil */
+.glows {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+body:not(.view-home) .glows {
+  display: none;
+}
+.glow {
+  position: absolute;
+  left: var(--x);
+  top: var(--y);
+  width: 50vmax;
+  height: 50vmax;
+  translate: -50% -50%;
+  border-radius: 50%;
+  background: radial-gradient(
+    circle,
+    color-mix(in srgb, var(--c) 75%, transparent) 0%,
+    transparent 62%
+  );
+  opacity: 0.75;
+  animation: drift 18s ease-in-out infinite alternate;
+  animation-delay: var(--d);
+  transition:
+    opacity 0.6s ease,
+    scale 0.6s ease;
+}
+.glow.is-hot {
+  opacity: 1;
+  scale: 1.2;
+}
+@keyframes drift {
+  from {
+    transform: translate(-3vmax, -2vmax);
+  }
+  to {
+    transform: translate(3vmax, 2vmax);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .glow {
+    animation: none;
+  }
+}
+
 /* Bootstrap : on remplace le bleu par la couleur du site */
 .btn-primary {
   --bs-btn-color: #fff;

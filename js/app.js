@@ -19,6 +19,14 @@ const STORAGE_KEY = "questionnaires-reponses-v2";
 
 // ---- État ----------------------------------------------------------
 const app = document.getElementById("app");
+
+// Lueurs colorées en arrière-plan de l'accueil (une par catégorie, à sa couleur)
+const GLOW_POS = [[10, 58], [30, 42], [50, 60], [70, 42], [90, 58]];
+const glows = document.createElement("div");
+glows.className = "glows"; glows.setAttribute("aria-hidden", "true");
+glows.innerHTML = CATEGORIES.map((c, i) => `<span class="glow" data-id="${c.id}" style="--c:${c.accent};--x:${GLOW_POS[i][0]}%;--y:${GLOW_POS[i][1]}%;--d:${-i * 3.5}s"></span>`).join("");
+document.body.prepend(glows);
+const hotGlow = id => glows.querySelectorAll(".glow").forEach(g => g.classList.toggle("is-hot", g.dataset.id === id));
 const questions = {};   // id -> tableau de textes (ou null si échec de chargement)
 let answers = {};       // id -> tableau d'index de réponses
 try { answers = JSON.parse(localStorage.getItem(STORAGE_KEY)) || {}; } catch (e) { answers = {}; }
@@ -62,8 +70,13 @@ async function loadAll() {
 
 // ---- Vues ----------------------------------------------------------
 let lastView = "";
-function setView(kind) {
-    app.classList.toggle("narrow", kind !== "home");
+function setView(kind, cat) {
+    const home = kind === "home";
+    document.body.className = home ? "view-home" : "view-colored";
+    if (home) app.setAttribute("data-bs-theme", "dark"); else app.removeAttribute("data-bs-theme");
+    if (cat) document.body.style.setProperty("--accent", cat.accent); else document.body.style.removeProperty("--accent");
+    app.classList.toggle("narrow", !home);
+    if (!home) hotGlow(null);
     if (kind !== lastView) { window.scrollTo(0, 0); lastView = kind; }
 }
 
@@ -107,6 +120,10 @@ function home() {
   <div class="row row-cols-2 row-cols-sm-3 row-cols-lg-5 gx-3 cat-row justify-content-center">${CATEGORIES.map(catCard).join("")}</div>
   <div class="home-bottom"><div class="mx-auto" style="max-width:420px">${pseudoField()}</div></div>`;
     bindPseudo();
+    app.querySelectorAll(".tarot-card[data-id]:not(:disabled)").forEach(el => {
+        el.onmouseenter = el.onfocus = () => hotGlow(el.dataset.id);
+        el.onmouseleave = el.onblur = () => hotGlow(null);
+    });
     app.querySelectorAll(".tarot-card[data-id]:not(:disabled)").forEach(el => el.onclick = () => {
         const id = el.dataset.id, p = progress(id);
         if (p.complete) result(id); else quiz(id, p.next);   // terminé : on revoit le résultat sans tout refaire
@@ -116,13 +133,13 @@ function home() {
 function quiz(id, i) {
     const cat = CATEGORIES.find(c => c.id === id), data = questions[id], items = data.items;
     if (i >= items.length) return result(id);
-    setView("quiz");
+    setView("quiz", cat);
     answers[id] = answers[id] || [];
     const sec = data.sections[items[i].s], pct = Math.round(i / items.length * 100);
     app.innerHTML = `<div class="d-flex justify-content-between align-items-center mb-2">
     <button type="button" class="btn btn-link btn-sm text-body-secondary px-0" id="quit">← Accueil</button>
     <strong class="text-center">${esc(cat.name)}</strong>
-    <span class="small fw-semibold accent-text">${i + 1} / ${items.length}</span></div>
+    <span class="small fw-semibold accent-text counter">${i + 1} / ${items.length}</span></div>
   <div class="progress mb-3" style="height:6px" role="progressbar" aria-valuenow="${pct}" aria-valuemin="0" aria-valuemax="100"><div class="progress-bar" style="width:${pct}%"></div></div>
   ${sec.titre ? `<div class="section mb-3"><b>${esc(sec.titre)}</b>${sec.description ? `<div class="small text-body-secondary">${esc(sec.description)}</div>` : ""}</div>` : ""}
   <div class="card shadow-sm"><div class="card-body p-3 p-md-4">
@@ -276,8 +293,8 @@ function chart(a, idxs) {
 }
 
 function result(id) {
-    setView("result");
     const cat = CATEGORIES.find(c => c.id === id), data = questions[id], a = answers[id] || [];
+    setView("result", cat);
     const all = data.items.map((_, i) => i);
     const multi = data.sections.length > 1;
     const blocks = data.sections.map((sec, si) => {
@@ -302,7 +319,7 @@ function result(id) {
     ${pseudoField()}
     <div class="d-grid d-sm-flex gap-2 mt-3"><button type="button" class="btn btn-primary" id="exp-pdf">PDF</button><button type="button" class="btn btn-outline-secondary" id="exp-img">Image (PNG)</button><button type="button" class="btn btn-outline-secondary" id="exp-json">JSON</button></div>
   </div></div>
-  <div class="d-grid d-sm-flex gap-2 mt-4"><button type="button" class="btn btn-primary" id="redo">Recommencer</button><button type="button" class="btn btn-outline-secondary" id="home2">Autres questionnaires</button></div>`;
+  <div class="d-grid d-sm-flex gap-2 mt-4"><button type="button" class="btn btn-light fw-semibold" id="redo">Recommencer</button><button type="button" class="btn btn-outline-light" id="home2">Autres questionnaires</button></div>`;
     document.getElementById("quit").onclick = home;
     document.getElementById("home2").onclick = home;
     bindPseudo();
