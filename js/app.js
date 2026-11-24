@@ -7,6 +7,7 @@ const CATEGORIES = [
     { id: "faire-ressentir", num: "V", name: "Faire ressentir", file: "data/json/FaireRessentir.json", art: "faire-ressentir", accent: "#1f9d8a" }
     // Pour tes propres illustrations : ajoute  image: "img/carte.png", imageHover: "img/carte-survol.png"  à la catégorie
 ];
+
 const ANSWERS = [
     { label: "Pas renseigné", hex: "#9a9097", color: "var(--c0)" },
     { label: "Kink absolu", hex: "#b3265e", color: "var(--c1)" },
@@ -73,7 +74,6 @@ let lastView = "";
 function setView(kind, cat) {
     const home = kind === "home";
     document.body.className = home ? "view-home" : "view-colored";
-    if (home) app.setAttribute("data-bs-theme", "dark"); else app.removeAttribute("data-bs-theme");
     if (cat) document.body.style.setProperty("--accent", cat.accent); else document.body.style.removeProperty("--accent");
     app.classList.toggle("narrow", !home);
     if (!home) hotGlow(null);
@@ -319,7 +319,7 @@ function result(id) {
     ${pseudoField()}
     <div class="d-grid d-sm-flex gap-2 mt-3"><button type="button" class="btn btn-primary" id="exp-pdf">PDF</button><button type="button" class="btn btn-outline-secondary" id="exp-img">Image (PNG)</button><button type="button" class="btn btn-outline-secondary" id="exp-json">JSON</button></div>
   </div></div>
-  <div class="d-grid d-sm-flex gap-2 mt-4"><button type="button" class="btn btn-light fw-semibold" id="redo">Recommencer</button><button type="button" class="btn btn-outline-light" id="home2">Autres questionnaires</button></div>`;
+  <div class="d-grid d-sm-flex gap-2 mt-4"><button type="button" class="btn btn-onc fw-semibold" id="redo">Recommencer</button><button type="button" class="btn btn-onc-ghost" id="home2">Autres questionnaires</button></div>`;
     document.getElementById("quit").onclick = home;
     document.getElementById("home2").onclick = home;
     bindPseudo();
